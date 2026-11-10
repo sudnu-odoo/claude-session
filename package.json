@@ -11,7 +11,7 @@
     "test": "node --test test/*.test.cjs test/*.test.mjs",
     "test:e2e": "node --test --test-concurrency=1 test/e2e/*.test.cjs",
     "test:e2e:live": "CC_LIVE=1 node --test --test-concurrency=1 test/e2e/*.test.cjs",
-    "dist": "vite build && electron-builder --linux deb"
+    "dist": "vite build && electron-builder --linux deb --publish never"
   },
   "license": "MIT",
   "dependencies": {
@@ -70,7 +70,8 @@
           "StartupWMClass": "claude-sessions",
           "Keywords": "claude;code;ai;sessions;chat;"
         }
-      }
+      },
+      "syncDesktopName": true
     },
     "deb": {
       "packageName": "claude-sessions",
@@ -91,5 +92,6 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/sudnu-odoo/claude-sessions.git"
-  }
+  },
+  "desktopName": "claude-sessions.desktop"
 }

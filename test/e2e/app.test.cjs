@@ -5,8 +5,14 @@ const fs = require('fs');
 const { makeFixture, ids } = require('../helpers/fixtures.cjs');
 const { launch, expandAll, chatRow } = require('./helpers.cjs');
 
+// Fake GitHub "latest release" so the update check never touches the network.
+const http = require('http');
+const fakeRelease = { tag_name: 'v99.0.0', name: 'v99.0.0', body: '## What changed\n- Fake feature from the e2e test', html_url: 'https://github.com/x/y/releases/v99.0.0', published_at: '2026-11-10T00:00:00Z',
+  assets: [{ name: 'claude-sessions_99.0.0_amd64.deb', browser_download_url: 'http://127.0.0.1:1/none.deb', size: 10 }] };
+const relServer = http.createServer((_q, r) => { r.setHeader('content-type', 'application/json'); r.end(JSON.stringify(fakeRelease)); }).listen(0, '127.0.0.1');
+relServer.unref();
 let fx, a, page;
-before(async () => { fx = makeFixture(); a = await launch({ configDir: fx.root }); page = a.page; await page.waitForSelector('.cat'); await expandAll(page); });
+before(async () => { await new Promise(r => relServer.listening ? r() : relServer.once('listening', r)); process.env.CC_UPDATE_API = `http://127.0.0.1:${relServer.address().port}/latest`; fx = makeFixture(); a = await launch({ configDir: fx.root }); page = a.page; await page.waitForSelector('.cat'); await expandAll(page); });
 after(async () => { await a?.close(); fx?.cleanup(); });
 // keep tests independent: close menus/dialogs left open; save a screenshot when one fails
 afterEach(async t => {
@@ -181,4 +187,16 @@ test('skills panel: create by hand, filter, view, edit and delete', async () => 
   await page.getByRole('button', { name: '+ New skill' }).waitFor();
   assert.equal(await row.count(), 0);
   assert.equal(fs.existsSync(require('path').join(fx.root, 'skills', 'e2e-skill')), false);
+});
+
+test('update check shows the badge and the release notes', async () => {
+  const pill = page.locator('.upd-pill');
+  await pill.waitFor({ timeout: 15000 });
+  await pill.click();
+  await page.getByText('Version 99.0.0 is available').waitFor();
+  await page.locator('.upd-notes', { hasText: 'Fake feature from the e2e test' }).waitFor();
+  // a dev checkout can't install itself: no install button, a pointer to the release page instead
+  assert.equal(await page.getByRole('button', { name: 'Update and restart' }).count(), 0);
+  await page.getByRole('button', { name: 'Skip this version' }).click();
+  assert.equal(await pill.count(), 0);
 });

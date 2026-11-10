@@ -1,3 +1,4 @@
+import { UpdateBadge } from './Updates.jsx';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon, rel, store } from './ui.jsx';
 
@@ -20,7 +21,7 @@ function InlineInput({ initial = '', placeholder, onDone }) {
 export default function Sidebar({
   data, currentId, selected, onSelect, onOpen, onChatMenu, onWsMenu, onCatMenu, onSearch, onNew, onSettings,
   onMoveSessions, onMoveWorkspace, onReorderCategories, onCreateCategory, onRenameCategory, renamingCat, setRenamingCat,
-  account, usage, onAccountMenu, onUsage,
+  account, usage, onAccountMenu, onUsage, update, onUpdate,
 }) {
   const [closed, setClosed] = useState(() => store.get('closedCats', {}));
   const [openWs, setOpenWs] = useState(() => store.get('openWs', {}));
@@ -196,6 +197,7 @@ export default function Sidebar({
           <div className="avatar">{((account?.email || 'You')[0]).toUpperCase()}</div>
           <div className="who"><span className="nm">{account?.email ? cap(account.email.split('@')[0]) : 'You'}</span>{account?.organization && <span className="org"> · {account.organization}</span>} <span className="dd"><Icon name="chev" size={12} /></span></div>
         </button>
+        {update && <UpdateBadge onClick={onUpdate} />}
         <button className="ibtn" title="Settings" onClick={onSettings}><Icon name="gear" size={16} /></button>
       </div>
     </aside>

@@ -88,10 +88,10 @@
       ]
     }
   },
-  "homepage": "https://github.com/sudnu-odoo/claude-sessions",
+  "homepage": "https://github.com/sudnu-odoo/claude-session",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sudnu-odoo/claude-sessions.git"
+    "url": "https://github.com/sudnu-odoo/claude-session.git"
   },
   "desktopName": "claude-sessions.desktop"
 }

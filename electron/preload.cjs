@@ -40,12 +40,13 @@ contextBridge.exposeInMainWorld('cc', {
     list: invoke('skills:list'), read: invoke('skills:read'), create: invoke('skills:create'),
     save: invoke('skills:save'), remove: invoke('skills:delete'), generate: invoke('skills:generate'), revise: invoke('skills:revise'),
   },
+  update: { check: invoke('update:check'), download: invoke('update:download'), install: invoke('update:install'), page: invoke('update:page') },
   copy: invoke('clipboard:write'),
   pickFolder: invoke('dialog:pickFolder'),
   devShot: invoke('dev:shot'),
   pathExists: invoke('path:exists'),
   on: (ch, fn) => {
-    const allowed = ['chat:event', 'chat:status', 'chat:session', 'chat:permission', 'chat:permission-done', 'chat:done', 'app:open'];
+    const allowed = ['chat:event', 'chat:status', 'chat:session', 'chat:permission', 'chat:permission-done', 'chat:done', 'app:open', 'update:progress'];
     if (!allowed.includes(ch)) throw new Error('bad channel');
     const h = (_e, d) => fn(d); ipcRenderer.on(ch, h); return () => ipcRenderer.removeListener(ch, h);
   },

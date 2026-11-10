@@ -6,6 +6,7 @@ import SearchPalette from './SearchPalette.jsx';
 import { MoveDialog, SettingsDialog, NewChatDialog } from './Dialogs.jsx';
 import { UsagePanel, ModelPanel, PermissionsPanel, ContextPanel, McpPanel } from './Panels.jsx';
 import { SkillsPanel } from './SkillsPanel.jsx';
+import { useUpdates, UpdateDialog } from './Updates.jsx';
 import { chatActions } from './chatStore.js';
 import { useAllRuns, getRun } from './chatStore.js';
 
@@ -15,6 +16,7 @@ export default function App() {
   const [jump, setJump] = useState(null);
   const [menu, setMenu] = useState(null);
   const [dialog, setDialog] = useState(null);
+  const updates = useUpdates();
   const [toastMsg, setToastMsg] = useState(null);
   const [renaming, setRenaming] = useState(false);
   const [sidebar, setSidebar] = useState(true);
@@ -184,14 +186,15 @@ export default function App() {
       </div>
       <div className={'body' + (sidebar ? '' : ' collapsed')}>
         <Sidebar data={view} currentId={draft ? null : currentId} selected={selected} onSelect={setSelected} onOpen={open} onChatMenu={onChatMenu} onWsMenu={onWsMenu} onCatMenu={onCatMenu}
-          onSearch={q => setDialog({ type: 'search', q })} onNew={newChat} onSettings={() => setDialog({ type: 'settings' })} account={account} usage={usage} onUsage={() => setDialog({ type: 'usage' })} onAccountMenu={e => { const r = e.currentTarget.getBoundingClientRect(); setMenu({ x: r.left, y: r.top - 6, up: true, items: [
+          onSearch={q => setDialog({ type: 'search', q })} onNew={newChat} onSettings={() => setDialog({ type: 'settings' })} update={updates.available} onUpdate={() => setDialog({ type: 'update' })} account={account} usage={usage} onUsage={() => setDialog({ type: 'usage' })} onAccountMenu={e => { const r = e.currentTarget.getBoundingClientRect(); setMenu({ x: r.left, y: r.top - 6, up: true, items: [
             { header: account?.email || 'Account' },
             { label: 'Usage', k: '/usage', onClick: () => setDialog({ type: 'usage' }) },
             { label: 'Model', k: '/model', onClick: () => setDialog({ type: 'model' }) },
             { label: 'Permissions', k: '/permissions', onClick: () => setDialog({ type: 'permissions' }) },
             { label: 'MCP servers', k: '/mcp', onClick: () => setDialog({ type: 'mcp', cwd: current?.cwd, session: current }) },
             { label: 'Skills', k: '/skills', onClick: () => setDialog({ type: 'skills', cwd: current?.cwd }) },
-            'sep', { label: 'Settings', onClick: () => setDialog({ type: 'settings' }) },
+            'sep', { label: updates.available ? `Update to ${updates.available.version}` : 'Check for updates', onClick: () => { if (!updates.available) updates.check(); setDialog({ type: 'update' }); } },
+            { label: 'Settings', onClick: () => setDialog({ type: 'settings' }) },
           ] }); }}
           onMoveSessions={moveSessions} onMoveWorkspace={moveWorkspace} onReorderCategories={reorderCategories}
           onCreateCategory={createCategory} onRenameCategory={renameCategory} renamingCat={renamingCat} setRenamingCat={setRenamingCat} />
@@ -214,7 +217,8 @@ export default function App() {
       {dialog?.type === 'context' && <ContextPanel session={dialog.session} cwd={dialog.cwd} onClose={() => setDialog(null)} />}
       {dialog?.type === 'mcp' && <McpPanel cwd={dialog.cwd || data.home} sessionId={dialog.session?.id} toast={toast} onClose={() => setDialog(null)} />}
       {dialog?.type === 'skills' && <SkillsPanel cwd={dialog.cwd} home={data.home} toast={toast} onClose={() => setDialog(null)} />}
-      {dialog?.type === 'settings' && <SettingsDialog data={data} onData={setData} onClose={() => setDialog(null)} />}
+      {dialog?.type === 'settings' && <SettingsDialog data={data} onData={setData} onClose={() => setDialog(null)} version={updates.info?.current} onUpdates={() => { if (!updates.available) updates.check(); setDialog({ type: 'update' }); }} />}
+      {dialog?.type === 'update' && <UpdateDialog updates={updates} onClose={() => setDialog(null)} />}
       {dialog?.type === 'move-session' && <MoveDialog title={dialog.s.title} categories={data.categories} currentId={dialog.s.categoryId}
         canReset={dialog.s.placed === 'session'} onPick={id => { moveSession(dialog.s.id, id); setDialog(null); }}
         onReset={() => { moveSession(dialog.s.id, null); setDialog(null); }} onClose={() => setDialog(null)} />}

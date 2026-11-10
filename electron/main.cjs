@@ -7,6 +7,7 @@ const { Library, HOME } = require('./library.cjs');
 const { ChatManager, sdk, CLAUDE_BIN } = require('./chat.cjs');
 const mcpConfig = require('./mcpConfig.cjs');
 const skills = require('./skills.cjs');
+const { Updater } = require('./updater.cjs');
 const { sdk: loadSdk, CLAUDE_BIN: CLAUDE } = require('./chat.cjs');
 const { execFile } = require('child_process');
 const { Control } = require('./control.cjs');
@@ -28,7 +29,7 @@ if (!process.env.CC_USER_DATA) {
   } catch (e) { console.error('migrate', e.message); }
 }
 
-let win, store, lib, chat, control;
+let win, store, lib, chat, control, updater;
 
 /** One-shot, tool-less Claude call that returns a SKILL.md (no session file is written). */
 async function askClaudeText(prompt) {
@@ -219,6 +220,10 @@ const handlers = {
   'skills:delete': (_e, file, cwd) => { const r = skills.remove(file, cwd); control.drop('cwd:' + (cwd || HOME)); return r; },
   'skills:generate': (_e, request, name) => askForSkill(skills.generatePrompt(request, name)),
   'skills:revise': (_e, current, request) => askForSkill(skills.revisePrompt(current, request)),
+  'update:check': () => updater.check(),
+  'update:download': (_e, update) => updater.download(update),
+  'update:install': async () => { await updater.install(); setTimeout(() => { app.relaunch(); app.exit(0); }, 300); return true; },
+  'update:page': (_e, url) => { if (/^https:\/\/github\.com\//.test(url)) shell.openExternal(url); return true; },
   'cc:context': (_e, sessionId, cwd) => control.context(sessionId, cwd),
   'clipboard:write': (_e, t) => { clipboard.writeText(String(t)); return true; },
   'settings:set': (_e, patch) => { Object.assign(store.d.settings, patch); store.save(); applyTheme(); return snapshot(); },
@@ -232,6 +237,7 @@ app.whenReady().then(async () => {
   store = new Store(app.getPath('userData'));
   applyTheme();
   lib = new Library(store);
+  updater = new Updater({ pkg: require('../package.json'), isPackaged: app.isPackaged, send: d => send('update:progress', d) });
   for (const [ch, fn] of Object.entries(handlers)) ipcMain.handle(ch, fn);
   let pending = null;
   const push = () => { clearTimeout(pending); pending = setTimeout(() => send('lib:changed', snapshot()), 250); };

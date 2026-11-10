@@ -63,7 +63,7 @@ export function NewChatDialog({ data, initialCwd, onStart, onClose }) {
   );
 }
 
-export function SettingsDialog({ data, onData, onClose }) {
+export function SettingsDialog({ data, onData, onClose, version, onUpdates }) {
   const theme = data.settings.theme || 'system';
   const set = async patch => onData(await api.setSettings(patch));
   return (
@@ -81,6 +81,10 @@ export function SettingsDialog({ data, onData, onClose }) {
       <h3>Sidebar</h3>
       <div className="sub" style={{ marginBottom: 4 }}>Manage categories right in the sidebar: “+ New category”, drag headers to reorder, right-click to rename, recolor or delete.</div>
       <label className="check"><input type="checkbox" checked={!!data.settings.showArchived} onChange={e => set({ showArchived: e.target.checked })} />Show archived chats</label>
+
+      <h3>Updates</h3>
+      <div className="row-between"><span className="sub" style={{ margin: 0 }}>Claude Sessions {version || ''} · checks GitHub for new versions every 6 hours.</span>
+        <button className="b" onClick={onUpdates}>Check for updates</button></div>
       <div className="acts"><button className="b pri" onClick={onClose}>Done</button></div>
     </Modal>
   );

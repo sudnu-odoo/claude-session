@@ -153,3 +153,32 @@ test('theme setting switches between light and dark', async () => {
   assert.equal(a.state().settings.theme, 'dark');
   assert.notEqual(await bg(), '');
 });
+
+test('skills panel: create by hand, filter, view, edit and delete', async () => {
+  await page.locator('button.acct').click();
+  await page.getByRole('menuitem', { name: /^Skills/ }).click();
+  await page.getByRole('button', { name: '+ New skill' }).click();
+  await page.getByRole('radio', { name: 'Write it myself' }).click();
+  await page.getByPlaceholder('e.g. release-notes').fill('e2e-skill');
+  await page.getByPlaceholder(/Draft release notes/).fill('A skill made by the e2e test');
+  await page.locator('textarea.skedit').fill('# E2E\n\n- step one');
+  await page.getByRole('button', { name: 'Save skill' }).click();
+  const row = page.locator('.mcprow', { hasText: 'e2e-skill' });
+  await row.waitFor();
+  await page.getByRole('radio', { name: /Plugins/ }).click();
+  assert.equal(await row.count(), 0);
+  await page.getByRole('radio', { name: /^All/ }).click();
+  await row.click();
+  await page.waitForSelector('.skmd h1');
+  await page.getByRole('tab', { name: 'Edit' }).click();
+  await page.getByRole('radio', { name: 'Edit it myself' }).click();
+  await page.locator('textarea.skedit').fill('---\nname: e2e-skill\ndescription: changed\n---\n\n# Changed\n');
+  await page.getByRole('button', { name: 'Save' }).click();
+  await page.locator('.skmd h1', { hasText: 'Changed' }).waitFor();
+  assert.match(fs.readFileSync(require('path').join(fx.root, 'skills', 'e2e-skill', 'SKILL.md'), 'utf8'), /description: changed/);
+  page.once('dialog', d => d.accept());
+  await page.getByRole('button', { name: 'Delete skill' }).click();
+  await page.getByRole('button', { name: '+ New skill' }).waitFor();
+  assert.equal(await row.count(), 0);
+  assert.equal(fs.existsSync(require('path').join(fx.root, 'skills', 'e2e-skill')), false);
+});

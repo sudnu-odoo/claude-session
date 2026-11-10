@@ -132,9 +132,12 @@ npm run dist           # builds release/claude-sessions_<version>_amd64.deb
 node scripts/screenshots.cjs   # regenerates docs/screenshots from sample chats
 ```
 
-New releases are built automatically: push a tag that matches the version
-in `package.json` (for example `git tag v0.1.0 && git push origin v0.1.0`),
-and GitHub builds the `.deb` and publishes it on the Releases page.
+**CI/CD.** Every push and pull request runs the unit and offline end-to-end
+tests (`.github/workflows/tests.yml`). Every push to `main` runs the tests,
+then bumps the version, tags it, builds the `.deb` and publishes it on the
+Releases page (`.github/workflows/release.yml`). The bump is a patch by
+default; put `#minor` or `#major` in a commit message for a bigger one, or run
+the Release workflow by hand from the Actions tab and pick the bump.
 </details>
 
 <details>

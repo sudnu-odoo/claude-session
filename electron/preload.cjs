@@ -34,6 +34,11 @@ contextBridge.exposeInMainWorld('cc', {
     account: invoke('cc:account'), usage: invoke('cc:usage'), commands: invoke('cc:commands'),
     models: invoke('cc:models'), mcp: invoke('cc:mcp'), context: invoke('cc:context'),
     mcpAdd: invoke('mcp:add'), mcpRemove: invoke('mcp:remove'),
+    mcpGet: invoke('mcp:get'), mcpUpdate: invoke('mcp:update'), mcpAsk: invoke('mcp:ask'),
+  },
+  skills: {
+    list: invoke('skills:list'), read: invoke('skills:read'), create: invoke('skills:create'),
+    save: invoke('skills:save'), remove: invoke('skills:delete'), generate: invoke('skills:generate'), revise: invoke('skills:revise'),
   },
   copy: invoke('clipboard:write'),
   pickFolder: invoke('dialog:pickFolder'),

@@ -56,3 +56,29 @@ test('only servers from Claude Code config scopes can be removed here', () => {
   assert.ok(removable('user') && removable('local') && removable('project'));
   assert.ok(!removable('claudeai') && !removable('plugin') && !removable(undefined));
 });
+
+const m = require('../electron/mcpConfig.cjs');
+test('configToForm round-trips through buildServerConfig', () => {
+  const cfg = { type: 'stdio', command: 'npx', args: ['-y', 'pkg', 'two words'], env: { A: '1' } };
+  const f = m.configToForm('fs', 'user', cfg);
+  assert.equal(f.args, '-y pkg "two words"');
+  assert.deepEqual(m.buildServerConfig(f), { name: 'fs', scope: 'user', config: cfg });
+  const h = m.configToForm('gh', 'project', { type: 'http', url: 'https://x/mcp', headers: { Authorization: 'Bearer t' } });
+  assert.deepEqual(m.buildServerConfig(h).config, { type: 'http', url: 'https://x/mcp', headers: { Authorization: 'Bearer t' } });
+});
+test('readServer finds user, local and project servers', () => {
+  const files = { '/c/.claude.json': JSON.stringify({ mcpServers: { u: { command: 'a' } }, projects: { '/p': { mcpServers: { l: { command: 'b' } } } } }), '/p/.mcp.json': JSON.stringify({ mcpServers: { pr: { command: 'c' } } }) };
+  const fs = { readFileSync: f => { if (!(f in files)) throw new Error('x'); return files[f]; } };
+  const o = { home: '/h', configDir: '/c', fs };
+  assert.equal(m.readServer('u', 'user', '/p', o).command, 'a');
+  assert.equal(m.readServer('l', 'local', '/p', o).command, 'b');
+  assert.equal(m.readServer('pr', 'project', '/p', o).command, 'c');
+  assert.throws(() => m.readServer('zz', 'user', '/p', o), /Could not find/);
+});
+test('mcpPrompt hides secrets and unmask restores them', () => {
+  const p = m.mcpPrompt('change', { name: 's', config: { command: 'x', env: { KEY: 'tok-9f8e7d' } } });
+  assert.ok(!p.includes('tok-9f8e7d')); assert.match(p, /\*\*\*KEEP\*\*\*/);
+  const r = m.parseMcpReply('Sure: {"name":"s","config":{"command":"y","env":{"KEY":"***KEEP***","NEW":"1"}}}');
+  assert.deepEqual(m.unmask(r.config, { env: { KEY: 'secret' } }).env, { KEY: 'secret', NEW: '1' });
+  assert.throws(() => m.parseMcpReply('nope'), /valid server/);
+});

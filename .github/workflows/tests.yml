@@ -1,0 +1,44 @@
+# Unit + offline end-to-end tests. Runs on every push and pull request,
+# and is reused by the Release workflow before anything is published.
+name: Tests
+
+on:
+  push:
+    branches-ignore: [main] # main is covered by the Release workflow, which calls this one
+  pull_request:
+  workflow_call:
+
+jobs:
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  e2e:
+    name: End-to-end tests (offline)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install a virtual display for Electron
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+      - name: Run the app tests against fake sessions
+        run: xvfb-run --auto-servernum npm run test:e2e
+      - name: Upload screenshots of failed tests
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failure-screenshots
+          path: /tmp/cc-e2e-*.png
+          if-no-files-found: ignore

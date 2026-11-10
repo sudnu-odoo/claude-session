@@ -32,5 +32,5 @@ test('commands are grouped by where they come from', () => {
 });
 
 test('every screen command maps to a known panel', () => {
-  for (const v of Object.values(SCREENS)) assert.ok(['usage', 'model', 'permissions', 'context', 'mcp', 'resume', 'settings'].includes(v), v);
+  for (const v of Object.values(SCREENS)) assert.ok(['usage', 'model', 'permissions', 'context', 'mcp', 'skills', 'resume', 'settings'].includes(v), v);
 });

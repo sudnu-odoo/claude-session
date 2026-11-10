@@ -6,6 +6,8 @@ const { Store } = require('./store.cjs');
 const { Library, HOME } = require('./library.cjs');
 const { ChatManager, sdk, CLAUDE_BIN } = require('./chat.cjs');
 const mcpConfig = require('./mcpConfig.cjs');
+const skills = require('./skills.cjs');
+const { sdk: loadSdk, CLAUDE_BIN: CLAUDE } = require('./chat.cjs');
 const { execFile } = require('child_process');
 const { Control } = require('./control.cjs');
 
@@ -28,6 +30,18 @@ if (!process.env.CC_USER_DATA) {
 
 let win, store, lib, chat, control;
 
+/** One-shot, tool-less Claude call that returns a SKILL.md (no session file is written). */
+async function askClaudeText(prompt) {
+  if (!CLAUDE) throw new Error('Claude Code is not installed (no `claude` command found).');
+  const { query } = await loadSdk();
+  const q = query({ prompt, options: { cwd: HOME, tools: [], maxTurns: 1, persistSession: false, settingSources: [], pathToClaudeCodeExecutable: CLAUDE } });
+  let text = '';
+  for await (const m of q) {
+    if (m.type === 'result') { if (m.is_error || m.subtype !== 'success') throw new Error(m.result || 'Claude could not answer'); text = m.result; }
+  }
+  return text;
+}
+async function askForSkill(prompt) { return skills.extractSkillMd(await askClaudeText(prompt)); }
 function createWindow() {
   win = new BrowserWindow({
     width: 1440, height: 900, minWidth: 900, minHeight: 600,
@@ -168,12 +182,43 @@ const handlers = {
     control.drop('cwd:' + dir);
     return cfg;
   },
+  'mcp:get': (_e, name, scope, cwd) => {
+    const dir = cwd && fs.existsSync(cwd) ? cwd : HOME;
+    const config = mcpConfig.readServer(name, scope, dir, { home: HOME, configDir: process.env.CLAUDE_CONFIG_DIR });
+    return mcpConfig.configToForm(name, scope, config);
+  },
+  'mcp:update': async (_e, oldName, oldScope, form, cwd) => {
+    const dir = cwd && fs.existsSync(cwd) ? cwd : HOME;
+    const old = mcpConfig.readServer(oldName, oldScope, dir, { home: HOME, configDir: process.env.CLAUDE_CONFIG_DIR });
+    const cfg = mcpConfig.buildServerConfig(form);
+    await runClaude(mcpConfig.removeArgs(oldName, oldScope), dir);
+    try { await runClaude(mcpConfig.addArgs(cfg), dir); }
+    catch (e) { await runClaude(mcpConfig.addArgs({ name: oldName, scope: oldScope, config: old }), dir).catch(() => {}); throw e; }
+    control.drop('cwd:' + dir);
+    return cfg;
+  },
+  'mcp:ask': async (_e, request, current, cwd) => {
+    // current: { name, scope } of the server being edited, or null for a new one.
+    const dir = cwd && fs.existsSync(cwd) ? cwd : HOME;
+    let old = null;
+    if (current) old = { name: current.name, config: mcpConfig.readServer(current.name, current.scope, dir, { home: HOME, configDir: process.env.CLAUDE_CONFIG_DIR }) };
+    const r = mcpConfig.parseMcpReply(await askClaudeText(mcpConfig.mcpPrompt(request, old)));
+    const config = mcpConfig.unmask(r.config, old && old.config);
+    return mcpConfig.configToForm(r.name || (old && old.name) || '', current ? current.scope : 'local', config);
+  },
   'mcp:remove': async (_e, name, scope, cwd) => {
     const dir = cwd && fs.existsSync(cwd) ? cwd : HOME;
     await runClaude(mcpConfig.removeArgs(name, scope), dir);
     control.drop('cwd:' + dir);
     return true;
   },
+  'skills:list': (_e, cwd) => skills.list(cwd),
+  'skills:read': (_e, file, cwd) => skills.read(file, cwd),
+  'skills:create': (_e, form, cwd) => { const r = skills.create(form, cwd); control.drop('cwd:' + (cwd || HOME)); return r; },
+  'skills:save': (_e, file, content, cwd) => skills.save(file, content, cwd),
+  'skills:delete': (_e, file, cwd) => { const r = skills.remove(file, cwd); control.drop('cwd:' + (cwd || HOME)); return r; },
+  'skills:generate': (_e, request, name) => askForSkill(skills.generatePrompt(request, name)),
+  'skills:revise': (_e, current, request) => askForSkill(skills.revisePrompt(current, request)),
   'cc:context': (_e, sessionId, cwd) => control.context(sessionId, cwd),
   'clipboard:write': (_e, t) => { clipboard.writeText(String(t)); return true; },
   'settings:set': (_e, patch) => { Object.assign(store.d.settings, patch); store.save(); applyTheme(); return snapshot(); },

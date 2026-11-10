@@ -20,7 +20,7 @@ async function launch({ configDir } = {}) {
   const env = { ...process.env, CC_USER_DATA: userData };
   delete env.ELECTRON_RUN_AS_NODE;
   if (configDir) env.CLAUDE_CONFIG_DIR = configDir;
-  const app = await _electron.launch({ args: [ROOT], cwd: ROOT, env });
+  const app = await _electron.launch({ args: [ROOT, ...(process.env.CI ? ['--no-sandbox'] : [])], cwd: ROOT, env });
   const page = await app.firstWindow();
   await page.waitForSelector('.tree');
   return {

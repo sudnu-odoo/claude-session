@@ -141,20 +141,44 @@ const MCP_LABEL = { connected: 'Connected', pending: 'Connecting…', failed: 'F
 const SCOPE_LABEL = { local: 'this folder, only you', project: 'this folder, shared via .mcp.json', user: 'all your folders' };
 const REMOVABLE = ['local', 'project', 'user'];
 
-function AddMcpForm({ cwd, onDone, onCancel }) {
-  const [f, setF] = useState({ name: '', type: 'stdio', command: '', args: '', url: '', env: '', headers: '', scope: 'local' });
+function AddMcpForm({ cwd, initial, editing, onDone, onCancel }) {
+  const [f, setF] = useState(initial || { name: '', type: 'stdio', command: '', args: '', url: '', env: '', headers: '', scope: 'local' });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
+  const [how, setHow] = useState('manual');
+  const [ask, setAsk] = useState('');
+  const [note, setNote] = useState(null);
   const set = p => { setF(x => ({ ...x, ...p })); setErr(null); };
   const save = async () => {
     setBusy(true); setErr(null);
-    try { await api.info.mcpAdd(f, cwd); onDone(f.name); } catch (e) { setErr(clean(e)); }
+    try { editing ? await api.info.mcpUpdate(editing.name, editing.scope, f, cwd) : await api.info.mcpAdd(f, cwd); onDone(f.name); } catch (e) { setErr(clean(e)); }
+    setBusy(false);
+  };
+  const askClaude = async () => {
+    setBusy(true); setErr(null);
+    try {
+      const r = await api.info.mcpAsk(ask, editing || null, cwd);
+      setF(x => ({ ...r, scope: x.scope })); setHow('manual');
+      setNote('Claude filled in the form below. Check it (replace any <YOUR_KEY> placeholders), then save.');
+    } catch (e) { setErr(clean(e)); }
     setBusy(false);
   };
   const remote = f.type !== 'stdio';
   return (
     <div className="mcpform">
-      <label>Name<input autoFocus value={f.name} onChange={e => set({ name: e.target.value })} placeholder="e.g. odoo-docs" spellCheck={false} /></label>
+      <div className="seg" role="radiogroup" aria-label="How" style={{ alignSelf: 'flex-start' }}>
+        {[['prompt', editing ? 'Ask Claude to change it' : 'Describe it to Claude'], ['manual', editing ? 'Edit it myself' : 'Fill in myself']].map(([v, l]) =>
+          <button key={v} role="radio" aria-checked={how === v} className={how === v ? 'on' : ''} onClick={() => setHow(v)}>{l}</button>)}
+      </div>
+      {how === 'prompt' ? <>
+        <label>{editing ? 'What should change?' : 'Which server do you want?'}
+          <textarea autoFocus rows={3} value={ask} onChange={e => setAsk(e.target.value)}
+            placeholder={editing ? 'e.g. Point it at /home/me/projects instead and add --read-only' : 'e.g. The official GitHub MCP server, run with npx'} /></label>
+        <div className="sub" style={{ margin: 0 }}>Claude fills in the form for you to review. Secret values (env, headers) are hidden from Claude and kept as they are.</div>
+        <div><button className="b" onClick={askClaude} disabled={busy || !ask.trim()}>{busy ? 'Claude is working…' : 'Apply with Claude'}</button></div>
+      </> : <>
+      {note && <div className="sub" style={{ margin: 0 }}>{note}</div>}
+      <label>Name<input value={f.name} onChange={e => set({ name: e.target.value })} placeholder="e.g. odoo-docs" spellCheck={false} /></label>
       <div className="lbl">Type</div>
       <div className="seg" role="radiogroup" aria-label="Server type">
         {[['stdio', 'Local command'], ['http', 'Remote (HTTP)'], ['sse', 'Remote (SSE)']].map(([v, l]) =>
@@ -168,6 +192,7 @@ function AddMcpForm({ cwd, onDone, onCancel }) {
         <label>URL<input value={f.url} onChange={e => set({ url: e.target.value })} placeholder="https://mcp.example.com/mcp" spellCheck={false} className="mono" /></label>
         <label>Headers <span className="opt">optional, one per line</span><textarea rows={3} value={f.headers} onChange={e => set({ headers: e.target.value })} placeholder="Authorization: Bearer …" spellCheck={false} className="mono" /></label>
       </>}
+      </>}
       <label>Available in
         <select value={f.scope} onChange={e => set({ scope: e.target.value })}>
           <option value="local">This folder only (just you)</option>
@@ -179,7 +204,7 @@ function AddMcpForm({ cwd, onDone, onCancel }) {
       {err && <div className="errbox">{err}</div>}
       <div className="acts">
         <button className="b" onClick={onCancel} disabled={busy}>Cancel</button>
-        <button className="b pri" onClick={save} disabled={busy || !f.name.trim() || (remote ? !f.url.trim() : !f.command.trim())}>{busy ? 'Adding…' : 'Add server'}</button>
+        <button className="b pri" onClick={save} disabled={busy || how === 'prompt' || !f.name.trim() || (remote ? !f.url.trim() : !f.command.trim())}>{editing ? 'Save changes' : 'Add server'}</button>
       </div>
     </div>
   );
@@ -187,13 +212,23 @@ function AddMcpForm({ cwd, onDone, onCancel }) {
 
 export function McpPanel({ cwd, sessionId, onClose, toast }) {
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState(null); // { server, form }
   const [{ loading, data: list, error }, reload] = useLoad(() => api.info.mcp(cwd, sessionId), [cwd]);
+  const edit = async s => { try { setEditing({ server: s, form: await api.info.mcpGet(s.name, s.scope, cwd) }); } catch (e) { alert(clean(e)); } };
   const remove = async s => {
     if (!confirm(`Remove the MCP server “${s.name}” (${SCOPE_LABEL[s.scope] || s.scope})?`)) return;
     try { await api.info.mcpRemove(s.name, s.scope, cwd); toast?.(`Removed ${s.name}`); reload(); } catch (e) { alert(clean(e)); }
   };
+  if (editing) return (
+    <Modal onClose={() => setEditing(null)} className="modal wide">
+      <h2>Edit {editing.server.name}</h2>
+      <div className="sub">Saved by removing and re-adding the server with <code>claude mcp</code>. If saving fails, the old settings are restored.</div>
+      <AddMcpForm cwd={cwd} initial={editing.form} editing={{ name: editing.server.name, scope: editing.server.scope }}
+        onCancel={() => setEditing(null)} onDone={name => { setEditing(null); toast?.(`Saved ${name}. New chats use the new settings.`); reload(); }} />
+    </Modal>
+  );
   if (adding) return (
-    <Modal onClose={() => setAdding(false)}>
+    <Modal onClose={() => setAdding(false)} className="modal wide">
       <h2>Add MCP server</h2>
       <div className="sub">Connect Claude to another tool or data source.</div>
       <AddMcpForm cwd={cwd} onCancel={() => setAdding(false)} onDone={name => { setAdding(false); toast?.(`Added ${name}`); reload(); }} />
@@ -211,6 +246,7 @@ export function McpPanel({ cwd, sessionId, onClose, toast }) {
             <span className={'mcpdot st-' + s.status} />
             <span style={{ flex: 1, minWidth: 0 }}><b>{s.name}</b>{s.scope && <span className="muted"> · {SCOPE_LABEL[s.scope] || s.scope}</span>}{s.error && <><br /><span className="muted">{s.error}</span></>}</span>
             <span className="cur">{MCP_LABEL[s.status] || s.status}</span>
+            {REMOVABLE.includes(s.scope) && <button className="ibtn rm ed" title={'Edit ' + s.name} onClick={() => edit(s)}>Edit</button>}
             {REMOVABLE.includes(s.scope) && <button className="ibtn rm" title={'Remove ' + s.name} onClick={() => remove(s)}>Remove</button>}
           </div>
         ))}

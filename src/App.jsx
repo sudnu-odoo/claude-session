@@ -5,6 +5,7 @@ import ChatView from './ChatView.jsx';
 import SearchPalette from './SearchPalette.jsx';
 import { MoveDialog, SettingsDialog, NewChatDialog } from './Dialogs.jsx';
 import { UsagePanel, ModelPanel, PermissionsPanel, ContextPanel, McpPanel } from './Panels.jsx';
+import { SkillsPanel } from './SkillsPanel.jsx';
 import { chatActions } from './chatStore.js';
 import { useAllRuns, getRun } from './chatStore.js';
 
@@ -189,6 +190,7 @@ export default function App() {
             { label: 'Model', k: '/model', onClick: () => setDialog({ type: 'model' }) },
             { label: 'Permissions', k: '/permissions', onClick: () => setDialog({ type: 'permissions' }) },
             { label: 'MCP servers', k: '/mcp', onClick: () => setDialog({ type: 'mcp', cwd: current?.cwd, session: current }) },
+            { label: 'Skills', k: '/skills', onClick: () => setDialog({ type: 'skills', cwd: current?.cwd }) },
             'sep', { label: 'Settings', onClick: () => setDialog({ type: 'settings' }) },
           ] }); }}
           onMoveSessions={moveSessions} onMoveWorkspace={moveWorkspace} onReorderCategories={reorderCategories}
@@ -211,6 +213,7 @@ export default function App() {
       {dialog?.type === 'permissions' && <PermissionsPanel prefs={prefs} onMode={setModeLive} onClose={() => setDialog(null)} />}
       {dialog?.type === 'context' && <ContextPanel session={dialog.session} cwd={dialog.cwd} onClose={() => setDialog(null)} />}
       {dialog?.type === 'mcp' && <McpPanel cwd={dialog.cwd || data.home} sessionId={dialog.session?.id} toast={toast} onClose={() => setDialog(null)} />}
+      {dialog?.type === 'skills' && <SkillsPanel cwd={dialog.cwd} home={data.home} toast={toast} onClose={() => setDialog(null)} />}
       {dialog?.type === 'settings' && <SettingsDialog data={data} onData={setData} onClose={() => setDialog(null)} />}
       {dialog?.type === 'move-session' && <MoveDialog title={dialog.s.title} categories={data.categories} currentId={dialog.s.categoryId}
         canReset={dialog.s.placed === 'session'} onPick={id => { moveSession(dialog.s.id, id); setDialog(null); }}

@@ -4,7 +4,7 @@ export const SCREENS = {
   usage: 'usage', cost: 'usage', stats: 'usage', 'extra-usage': 'usage',
   model: 'model', effort: 'model', fast: 'model',
   permissions: 'permissions', 'allowed-tools': 'permissions',
-  context: 'context', mcp: 'mcp',
+  context: 'context', mcp: 'mcp', skills: 'skills',
   resume: 'resume', continue: 'resume',
   config: 'settings', settings: 'settings', theme: 'settings',
 };

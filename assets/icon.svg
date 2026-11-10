@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2f2d29"/>
+      <stop offset="1" stop-color="#1a1917"/>
+    </linearGradient>
+    <linearGradient id="spark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e8906f"/>
+      <stop offset="1" stop-color="#c96442"/>
+    </linearGradient>
+  </defs>
+  <!-- tile with a soft inner edge -->
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#bg)"/>
+  <rect x="17.5" y="17.5" width="477" height="477" rx="110.5" fill="none" stroke="#ffffff" stroke-opacity=".07" stroke-width="3"/>
+  <!-- terminal prompt -->
+  <path d="M120 196 L212 268 L120 340" fill="none" stroke="#f1ebdf" stroke-width="42" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="242" y="318" width="132" height="42" rx="21" fill="#f1ebdf"/>
+  <!-- spark: eight tapered rays -->
+  <g transform="translate(372 152)" fill="url(#spark)">
+    <path d="M0 -84 C15 -30 15 -30 0 0 C-15 -30 -15 -30 0 -84Z"/>
+    <path d="M0 84 C15 30 15 30 0 0 C-15 30 -15 30 0 84Z"/>
+    <path d="M-84 0 C-30 15 -30 15 0 0 C-30 -15 -30 -15 -84 0Z"/>
+    <path d="M84 0 C30 15 30 15 0 0 C30 -15 30 -15 84 0Z"/>
+    <g transform="rotate(45)" opacity=".85">
+      <path d="M0 -60 C11 -22 11 -22 0 0 C-11 -22 -11 -22 0 -60Z"/>
+      <path d="M0 60 C11 22 11 22 0 0 C-11 22 -11 22 0 60Z"/>
+      <path d="M-60 0 C-22 11 -22 11 0 0 C-22 -11 -22 -11 -60 0Z"/>
+      <path d="M60 0 C22 11 22 11 0 0 C22 -11 22 -11 60 0Z"/>
+    </g>
+    <circle r="16"/>
+  </g>
+</svg>

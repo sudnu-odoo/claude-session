@@ -1,0 +1,155 @@
+// Offline integration tests: real app + fake sessions. No network, no cost.
+const { test, before, after, afterEach } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('fs');
+const { makeFixture, ids } = require('../helpers/fixtures.cjs');
+const { launch, expandAll, chatRow } = require('./helpers.cjs');
+
+let fx, a, page;
+before(async () => { fx = makeFixture(); a = await launch({ configDir: fx.root }); page = a.page; await page.waitForSelector('.cat'); await expandAll(page); });
+after(async () => { await a?.close(); fx?.cleanup(); });
+// keep tests independent: close menus/dialogs left open; save a screenshot when one fails
+afterEach(async t => {
+  if (!page) return;
+  if (t.passed === false || process.env.CC_E2E_SHOTS) await page.screenshot({ path: require('path').join(require('os').tmpdir(), 'cc-e2e-' + t.name.replace(/\W+/g, '-').slice(0, 50) + '.png') }).catch(() => {});
+  for (let i = 0; i < 3 && await page.locator('.scrim, .menu').count(); i++) await page.keyboard.press('Escape');
+});
+
+const count = async name => Number(await page.locator('.cat', { hasText: name }).locator('.n').textContent());
+
+test('sidebar shows the four categories with automatic sorting', async () => {
+  assert.equal(await count('Analysis'), 1);
+  assert.equal(await count('Odoo Development'), 1);
+  assert.equal(await count('Other Projects'), 2);
+  assert.equal(await count('General'), 1);
+  assert.ok(await page.locator('.ws', { hasText: 'acme' }).locator('.ver', { hasText: '19.0' }).count());
+});
+
+test('opening a chat shows messages and expandable tool calls', async () => {
+  await chatRow(page, 'Invoice report crash fix').click();
+  await page.waitForSelector('.a');
+  assert.equal(await page.locator('.wsbar h1').textContent(), 'Invoice report crash fix');
+  const bash = page.locator('.tool', { hasText: 'Bash' });
+  assert.match(await bash.locator('.st').textContent(), /error/);
+  await bash.locator('.h').click();
+  assert.match(await bash.textContent(), /KeyError: 'partner_shipping_id'/);
+  assert.match(await page.locator('.pill.mono').first().textContent(), /19\.0-acme-invoice/);
+});
+
+test('long chats load the latest messages first and older ones on scroll', async () => {
+  await chatRow(page, 'Question number 0').click();
+  await page.waitForSelector('.load-more');
+  const earlier = Number((await page.locator('.load-more').first().textContent()).match(/(\d+) earlier/)[1]);
+  assert.ok(earlier >= 200 && earlier <= 240, 'earlier=' + earlier);
+  assert.ok(await page.locator('.col .u, .col .a').count() >= 60);
+  await page.locator('.scroll').evaluate(el => { el.scrollTop = 0; el.dispatchEvent(new Event('scroll')); });
+  await page.waitForFunction(() => document.querySelectorAll('.col .u, .col .a').length >= 120);
+  await page.locator('.chat.on').click(); // plain click clears any selection
+});
+
+test('Ctrl+K finds text inside tool output and jumps to the message', async () => {
+  await page.keyboard.press('Control+k');
+  await page.fill('.palette input', 'partner_shipping_id');
+  await page.waitForSelector('.hit .sn mark');
+  await page.locator('.hit .sn.sub').first().click();
+  await page.waitForSelector('.wsbar h1:text("Invoice report crash fix")');
+  assert.equal(await page.locator('.scrim').count(), 0);
+});
+
+test('search filters narrow results', async () => {
+  await page.keyboard.press('Control+k');
+  await page.fill('.palette input', 'in:analysis');
+  await page.waitForFunction(() => document.querySelectorAll('.hit').length === 1);
+  assert.match(await page.locator('.hit').textContent(), /7654321/);
+  await page.keyboard.press('Escape');
+});
+
+test('right-click → Move to puts a chat in another category and remembers it', async () => {
+  await chatRow(page, 'Install tldr').click({ button: 'right' });
+  await page.locator('.menu .mi', { hasText: 'Move to…' }).click();
+  await page.locator('.modal .opt', { hasText: 'Other Projects' }).click();
+  await page.waitForFunction(() => [...document.querySelectorAll('.cat')].find(c => c.textContent.includes('General'))?.querySelector('.n')?.textContent === '0');
+  assert.equal(a.state().sessionCategory[ids.general], 'other');
+});
+
+test('Ctrl+click selects several chats and moves them together', async () => {
+  await expandAll(page);
+  await chatRow(page, 'TV starter app').click({ modifiers: ['Control'] });
+  await chatRow(page, 'Question number 0').click({ modifiers: ['Control'] });
+  assert.match(await page.locator('.selbar').textContent(), /2 selected/);
+  await chatRow(page, 'TV starter app').click({ button: 'right' });
+  await page.locator('.menu .mi', { hasText: 'General' }).click();
+  await page.waitForFunction(() => [...document.querySelectorAll('.cat')].find(c => c.textContent.includes('General'))?.querySelector('.n')?.textContent === '2');
+  const st = a.state();
+  assert.equal(st.sessionCategory[ids.tv], 'general');
+  assert.equal(st.sessionCategory[ids.long], 'general');
+});
+
+test('categories: create, rename, delete guard and delete', async () => {
+  await page.locator('.add-cat').click();
+  await page.fill('.cat-input', 'Clients');
+  await page.keyboard.press('Enter');
+  await page.waitForSelector('.cat:has-text("Clients")');
+  await page.locator('.cat', { hasText: 'Clients' }).dblclick();
+  await page.fill('.cat-input', 'Client work');
+  await page.keyboard.press('Enter');
+  await page.waitForSelector('.cat:has-text("Client work")');
+  // a category with chats cannot be deleted
+  await page.locator('.cat', { hasText: 'Odoo Development' }).click({ button: 'right' });
+  assert.equal(await page.locator('.menu .mi.disabled', { hasText: 'Delete category' }).count(), 1);
+  await page.keyboard.press('Escape');
+  // an empty one can
+  await page.locator('.cat', { hasText: 'Client work' }).click({ button: 'right' });
+  await page.locator('.menu .mi', { hasText: 'Delete category' }).click();
+  await page.waitForFunction(() => ![...document.querySelectorAll('.cat')].some(c => c.textContent.includes('Client work')));
+  assert.ok(!a.state().categories.some(c => c.name === 'Client work'));
+});
+
+test('dragging a category header reorders categories', async () => {
+  await page.locator('.cat', { hasText: 'General' }).dragTo(page.locator('.cat', { hasText: 'Analysis' }), { targetPosition: { x: 20, y: 3 } });
+  await page.waitForFunction(() => document.querySelector('.cat .cname')?.textContent === 'General');
+  assert.equal(a.state().categories[0].id, 'general');
+});
+
+test('F2 renames the open chat', async () => {
+  await expandAll(page);
+  await chatRow(page, 'Invoice report crash fix').click();
+  await page.keyboard.press('F2');
+  await page.fill('.title-input', 'Acme invoice fix');
+  await page.keyboard.press('Enter');
+  await page.waitForSelector('.wsbar h1:text("Acme invoice fix")');
+  assert.equal(a.state().names[ids.odoo], 'Acme invoice fix');
+  assert.match(fs.readFileSync(fx.files.odoo, 'utf8'), /"customTitle":"Acme invoice fix"/);
+});
+
+test('archive hides a chat; pin moves it to Pinned', async () => {
+  await chatRow(page, 'Acme invoice fix').click({ button: 'right' });
+  await page.locator('.menu .mi', { hasText: 'Pin' }).first().click();
+  await page.waitForSelector('.sec-h:has-text("Pinned")');
+  await chatRow(page, 'Odev analyze task').click({ button: 'right' });
+  await page.locator('.menu .mi', { hasText: 'Archive' }).click();
+  await page.waitForFunction(() => ![...document.querySelectorAll('.chat')].some(c => c.textContent.includes('Odev analyze task')));
+  assert.equal(a.state().archived[ids.analysis], true);
+});
+
+test('new chat dialog validates the folder', async () => {
+  await page.locator('.nav-it', { hasText: 'New chat' }).click();
+  await page.fill('.pathrow input', '/definitely/not/here');
+  await page.locator('.modal .b.pri', { hasText: 'Start chat' }).click();
+  await page.waitForSelector('.formerr');
+  await page.locator(`.modal .opt[title="${require('os').homedir()}"]`).click();
+  assert.equal(await page.locator('.formerr').count(), 0);
+  await page.locator('.modal .b.pri', { hasText: 'Start chat' }).click();
+  await page.waitForSelector('.newchat-hero');
+});
+
+test('theme setting switches between light and dark', async () => {
+  await page.emulateMedia({ colorScheme: null }); // let the app's own theme setting decide
+  const bg = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  await page.evaluate(() => window.cc.setSettings({ theme: 'light' }));
+  await page.waitForFunction(() => getComputedStyle(document.body).backgroundColor === 'rgb(250, 249, 245)');
+  await page.evaluate(() => window.cc.setSettings({ theme: 'dark' }));
+  await page.waitForFunction(() => getComputedStyle(document.body).backgroundColor === 'rgb(38, 38, 36)');
+  assert.equal(a.state().settings.theme, 'dark');
+  assert.notEqual(await bg(), '');
+});

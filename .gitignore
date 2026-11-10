@@ -1,0 +1,7 @@
+node_modules/
+dist/
+release/
+# local-only: Claude Code project files, the design mockup (has real project names), test screenshots
+.claude/
+CLAUDE.md
+design/

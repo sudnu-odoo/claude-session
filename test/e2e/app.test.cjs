@@ -210,15 +210,17 @@ test('terminal: Ctrl+J opens a shell that runs commands, tabs and hide work', as
   await page.waitForTimeout(300);
   await page.keyboard.type('echo term-$((40+2))\n');
   await panel.locator('.xterm-rows', { hasText: 'term-42' }).waitFor({ timeout: 15000 });
+  // Each step waits for its result: shells start asynchronously, and CI runners are fast.
   await panel.getByTitle(/^New terminal/).click();
-  assert.equal(await panel.locator('.term-item').count(), 2); // the shell list appears once there are two
+  await panel.locator('.term-item').nth(1).waitFor(); // the shell list appears once there are two
+  assert.equal(await panel.locator('.term-item').count(), 2);
   await panel.locator('.term-item.on').getByTitle('Kill terminal').click();
-  assert.equal(await panel.locator('.term-item').count(), 0); // back to one shell: list hidden, like VS Code
-  assert.equal(await panel.locator('.term-view').count(), 1);
+  await panel.locator('.term-item').first().waitFor({ state: 'detached' }); // back to one shell: list hidden, like VS Code
+  await page.waitForFunction(() => document.querySelectorAll('.term-panel .term-view').length === 1);
   await page.keyboard.press('Control+j'); // hides it even while the shell has focus
-  assert.equal(await panel.isVisible(), false);
+  await panel.waitFor({ state: 'hidden' });
   await page.keyboard.press('Control+Backquote'); // Ctrl+` works too
   await panel.waitFor();
   await page.keyboard.press('Control+Backquote');
-  assert.equal(await panel.isVisible(), false);
+  await panel.waitFor({ state: 'hidden' });
 });

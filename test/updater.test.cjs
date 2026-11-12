@@ -31,3 +31,16 @@ test('toUpdate only reports newer, published releases', () => {
   assert.equal(toUpdate({ ...rel, draft: true }, '0.1.0'), null);
   assert.equal(toUpdate({ ...rel, prerelease: true }, '0.1.0'), null);
 });
+
+const { terminalFont, DEFAULT_FONT } = require('../electron/terminal.cjs');
+test('terminalFont uses VS Code terminal settings, else Nerd Font defaults', () => {
+  const files = { '/h/.config/Code/User/settings.json': '{\n // comment\n "terminal.integrated.fontFamily": "\'JetBrainsMono Nerd Font\', monospace",\n "terminal.integrated.fontSize": 14,\n}' };
+  const read = f => { if (!(f in files)) throw new Error('nope'); return files[f]; };
+  const f = terminalFont('/h', read);
+  assert.ok(f.fontFamily.startsWith("'JetBrainsMono Nerd Font', 'JetBrainsMono Nerd Font'"));
+  assert.equal(f.fontFamily.match(/monospace/g).length, 1); // generic family only once, at the very end
+  assert.equal(f.fontSize, 14); assert.equal(f.source, 'Code');
+  const d = terminalFont('/nobody', read);
+  assert.equal(d.fontFamily, DEFAULT_FONT); assert.equal(d.source, 'default');
+  assert.match(DEFAULT_FONT, /^'JetBrainsMono Nerd Font'/);
+});

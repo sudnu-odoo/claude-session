@@ -40,7 +40,7 @@ contextBridge.exposeInMainWorld('cc', {
     list: invoke('skills:list'), read: invoke('skills:read'), create: invoke('skills:create'),
     save: invoke('skills:save'), remove: invoke('skills:delete'), generate: invoke('skills:generate'), revise: invoke('skills:revise'),
   },
-  term: { create: invoke('term:create'), write: invoke('term:write'), resize: invoke('term:resize'), kill: invoke('term:kill') },
+  term: { font: invoke('term:font'), create: invoke('term:create'), write: invoke('term:write'), resize: invoke('term:resize'), kill: invoke('term:kill') },
   update: { check: invoke('update:check'), download: invoke('update:download'), install: invoke('update:install'), page: invoke('update:page') },
   copy: invoke('clipboard:write'),
   pickFolder: invoke('dialog:pickFolder'),

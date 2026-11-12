@@ -8,7 +8,7 @@ const { ChatManager, sdk, CLAUDE_BIN } = require('./chat.cjs');
 const mcpConfig = require('./mcpConfig.cjs');
 const skills = require('./skills.cjs');
 const { Updater } = require('./updater.cjs');
-const { Terminals } = require('./terminal.cjs');
+const { Terminals, terminalFont } = require('./terminal.cjs');
 const { sdk: loadSdk, CLAUDE_BIN: CLAUDE } = require('./chat.cjs');
 const { execFile } = require('child_process');
 const { Control } = require('./control.cjs');
@@ -222,6 +222,7 @@ const handlers = {
   'skills:delete': (_e, file, cwd) => { const r = skills.remove(file, cwd); control.drop('cwd:' + (cwd || HOME)); return r; },
   'skills:generate': (_e, request, name) => askForSkill(skills.generatePrompt(request, name)),
   'skills:revise': (_e, current, request) => askForSkill(skills.revisePrompt(current, request)),
+  'term:font': () => terminalFont(),
   'term:create': (_e, opts) => terms.create(opts),
   'term:write': (_e, id, data) => terms.write(id, data),
   'term:resize': (_e, id, cols, rows) => terms.resize(id, cols, rows),

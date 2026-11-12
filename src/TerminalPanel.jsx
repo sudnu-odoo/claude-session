@@ -18,12 +18,23 @@ const themeNow = () => (isDark() ? VS_DARK : VS_LIGHT);
 const baseName = p => (p || '').split('/').filter(Boolean).pop() || '~';
 const shellName = t => baseName(t.shell);
 
+// Ask once for the font (VS Code's terminal font if set), and wait until it is loaded so xterm measures the right cell size.
+let fontPromise;
+const getFont = () => (fontPromise ||= api.term.font().catch(() => ({ fontFamily: 'monospace', fontSize: 13 })).then(async f => {
+  try { await Promise.all([document.fonts.load(`${f.fontSize}px ${f.fontFamily}`), document.fonts.load(`${f.fontSize}px ${f.fontFamily}`, '\ue0a0\uf418')]); } catch { }
+  return f;
+}));
+
 /** One xterm bound to one pty. Stays mounted while hidden so its scrollback survives tab switches. */
 function TermView({ tab, active, onExit }) {
   const ref = useRef(null);
   const termRef = useRef(null);
+  const [font, setFont] = useState(null);
+  const activeRef = useRef(active); activeRef.current = active;
+  useEffect(() => { getFont().then(setFont); }, []);
   useEffect(() => {
-    const term = new Terminal({ fontFamily: "'JetBrains Mono', 'Droid Sans Mono', monospace", fontSize: 13, lineHeight: 1.2, cursorBlink: true, scrollback: 5000, theme: themeNow(), allowProposedApi: true });
+    if (!font) return;
+    const term = new Terminal({ fontFamily: font.fontFamily, fontSize: font.fontSize, lineHeight: 1.2, cursorBlink: true, scrollback: 5000, theme: themeNow(), allowProposedApi: true });
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.open(ref.current);
@@ -36,8 +47,9 @@ function TermView({ tab, active, onExit }) {
     const onTheme = () => { term.options.theme = themeNow(); };
     darkMq.addEventListener('change', onTheme);
     doFit();
+    if (activeRef.current) term.focus(); // it may be created after the panel opened (font loading)
     return () => { offData(); offExit(); sub.dispose(); ro.disconnect(); darkMq.removeEventListener('change', onTheme); term.dispose(); };
-  }, [tab.id]);
+  }, [tab.id, font]);
   useEffect(() => { if (active && termRef.current) { termRef.current.fit.fit(); termRef.current.term.focus(); } }, [active]);
   return <div className="term-view" ref={ref} style={{ display: active ? 'block' : 'none' }} />;
 }
@@ -51,6 +63,7 @@ export function TerminalPanel({ cwd, open, onClose }) {
   const add = async dir => {
     setErr(null);
     try {
+      await getFont(); // load the font first so the view is ready before the shell prints its prompt
       const t = await api.term.create({ cwd: dir || cwd });
       setTabs(x => [...x, { ...t, alive: true }]); setCur(t.id);
     } catch (e) { setErr(String(e?.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')); }

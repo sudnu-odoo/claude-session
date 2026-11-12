@@ -22,8 +22,12 @@ export default function App() {
   const [termUsed, setTermUsed] = useState(false); // mount the panel only once it was opened
   const toggleTerm = () => { setTermUsed(true); setTermOpen(o => !o); };
   useEffect(() => {
-    const k = e => { if (e.ctrlKey && (e.key === '`' || e.code === 'Backquote')) { e.preventDefault(); toggleTerm(); } };
-    window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k);
+    // Ctrl+J or Ctrl+` toggles the terminal, like VS Code. Capture phase so it works even while a shell has focus.
+    const k = e => {
+      if (!e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) return;
+      if (e.code === 'KeyJ' || e.code === 'Backquote' || e.key === '`') { e.preventDefault(); e.stopPropagation(); toggleTerm(); }
+    };
+    window.addEventListener('keydown', k, true); return () => window.removeEventListener('keydown', k, true);
   }, []);
   const [toastMsg, setToastMsg] = useState(null);
   const [renaming, setRenaming] = useState(false);

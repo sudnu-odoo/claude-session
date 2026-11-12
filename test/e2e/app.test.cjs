@@ -201,8 +201,8 @@ test('update check shows the badge and the release notes', async () => {
   assert.equal(await pill.count(), 0);
 });
 
-test('terminal: Ctrl+` opens a shell that runs commands, tabs and hide work', async () => {
-  await page.keyboard.press('Control+Backquote');
+test('terminal: Ctrl+J opens a shell that runs commands, tabs and hide work', async () => {
+  await page.keyboard.press('Control+j');
   const panel = page.locator('.term-panel');
   await panel.locator('.xterm-rows').waitFor();
   // wait for the shell's prompt before typing, so no keystrokes are lost during startup
@@ -215,6 +215,10 @@ test('terminal: Ctrl+` opens a shell that runs commands, tabs and hide work', as
   await panel.locator('.term-item.on').getByTitle('Kill terminal').click();
   assert.equal(await panel.locator('.term-item').count(), 0); // back to one shell: list hidden, like VS Code
   assert.equal(await panel.locator('.term-view').count(), 1);
+  await page.keyboard.press('Control+j'); // hides it even while the shell has focus
+  assert.equal(await panel.isVisible(), false);
+  await page.keyboard.press('Control+Backquote'); // Ctrl+` works too
+  await panel.waitFor();
   await page.keyboard.press('Control+Backquote');
   assert.equal(await panel.isVisible(), false);
 });

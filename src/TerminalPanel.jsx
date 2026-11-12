@@ -78,7 +78,7 @@ export function TerminalPanel({ cwd, open, onClose }) {
         <span className="sp" />
         <button className="term-act" title={'New terminal in ' + (cwd || '~')} onClick={() => add()}><Icon name="plus" size={16} /></button>
         <button className="term-act" title="Kill the active terminal" disabled={!cur} onClick={() => cur && close(cur)}><Icon name="trash" size={15} /></button>
-        <button className="term-act" title="Hide panel (Ctrl `)" onClick={onClose}>✕</button>
+        <button className="term-act" title="Hide panel (Ctrl J)" onClick={onClose}>✕</button>
       </div>
       {err && <div className="errbox" style={{ margin: 8 }}>{err}</div>}
       <div className="term-main">

@@ -97,6 +97,7 @@ you never lose track of chats). Drag category headers to reorder them.
 | **Ctrl+K** | Search all chats |
 | **Ctrl+N** | New chat |
 | **Ctrl+B** | Show or hide the sidebar |
+| **Ctrl+J** (or **Ctrl+`**) | Show or hide the terminal |
 | **F2** | Rename the open chat |
 | **Shift+Tab** | Switch permission mode while typing |
 | **Esc** | Stop Claude, or close a menu |

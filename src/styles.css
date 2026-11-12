@@ -420,3 +420,19 @@ mark{background:var(--accent-soft);color:var(--accent-text);border-radius:3px;pa
 .upd-pill:hover{background:var(--accent);color:#fff} .upd-pill:hover .dot{background:#fff}
 .upd-notes{max-height:42vh;overflow:auto;border:1px solid var(--line);border-radius:var(--r-s);padding:4px 14px;margin-bottom:12px}
 .row-between{display:flex;align-items:center;justify-content:space-between;gap:12px}
+/* Terminal panel */
+.main-col{display:flex;flex-direction:column;min-width:0;min-height:0}
+.main-col>.main{flex:1}
+.term-panel{position:relative;flex-direction:column;border-top:1px solid var(--line);background:var(--bg);min-height:0;flex:none}
+.term-grip{position:absolute;top:-3px;left:0;right:0;height:6px;cursor:ns-resize;z-index:2}
+.term-bar{display:flex;align-items:center;gap:6px;padding:4px 8px;border-bottom:1px solid var(--line);font-size:12px}
+.term-title{font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-size:11px;margin-right:6px}
+.term-tabs{display:flex;gap:2px;flex:1;min-width:0;overflow-x:auto}
+.term-tab{display:flex;align-items:center;gap:6px;padding:3px 6px 3px 10px;border-radius:var(--r-s);color:var(--muted);cursor:pointer;white-space:nowrap}
+.term-tab.on{background:var(--panel);color:var(--text)}
+.term-tab.dead span{text-decoration:line-through;opacity:.6}
+.term-tab .x{font-size:10px;opacity:0;padding:0 3px;color:var(--muted)} .term-tab:hover .x,.term-tab.on .x{opacity:1}
+.term-body{flex:1;min-height:0;position:relative;padding:4px 0 0 8px}
+.term-view{position:absolute;inset:4px 0 0 8px}
+.term-view .xterm{height:100%} .term-view .xterm-viewport{background:transparent !important}
+.wctl .term-btn{font:600 11px var(--mono);width:auto;padding:0 8px} .wctl .term-btn.on{color:var(--accent)}

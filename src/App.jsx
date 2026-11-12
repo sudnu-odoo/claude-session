@@ -7,6 +7,7 @@ import { MoveDialog, SettingsDialog, NewChatDialog } from './Dialogs.jsx';
 import { UsagePanel, ModelPanel, PermissionsPanel, ContextPanel, McpPanel } from './Panels.jsx';
 import { SkillsPanel } from './SkillsPanel.jsx';
 import { useUpdates, UpdateDialog } from './Updates.jsx';
+import { TerminalPanel } from './TerminalPanel.jsx';
 import { chatActions } from './chatStore.js';
 import { useAllRuns, getRun } from './chatStore.js';
 
@@ -17,6 +18,13 @@ export default function App() {
   const [menu, setMenu] = useState(null);
   const [dialog, setDialog] = useState(null);
   const updates = useUpdates();
+  const [termOpen, setTermOpen] = useState(false);
+  const [termUsed, setTermUsed] = useState(false); // mount the panel only once it was opened
+  const toggleTerm = () => { setTermUsed(true); setTermOpen(o => !o); };
+  useEffect(() => {
+    const k = e => { if (e.ctrlKey && (e.key === '`' || e.code === 'Backquote')) { e.preventDefault(); toggleTerm(); } };
+    window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k);
+  }, []);
   const [toastMsg, setToastMsg] = useState(null);
   const [renaming, setRenaming] = useState(false);
   const [sidebar, setSidebar] = useState(true);
@@ -179,6 +187,7 @@ export default function App() {
         {current && <span className="crumbs">{cat?.name} / {wsName}</span>}
         <div className="wctl">
           <button title="Toggle sidebar (Ctrl B)" onClick={() => setSidebar(s => !s)}><Icon name="sidebar" size={14} /></button>
+          <button className={'term-btn' + (termOpen ? ' on' : '')} title="Toggle terminal (Ctrl `)" onClick={toggleTerm}>&gt;_</button>
           <button title="Minimize" onClick={() => api.win.minimize()}>—</button>
           <button title="Maximize" onClick={() => api.win.maximize()}>▢</button>
           <button className="x" title="Close" onClick={() => api.win.close()}>✕</button>
@@ -198,6 +207,7 @@ export default function App() {
           ] }); }}
           onMoveSessions={moveSessions} onMoveWorkspace={moveWorkspace} onReorderCategories={reorderCategories}
           onCreateCategory={createCategory} onRenameCategory={renameCategory} renamingCat={renamingCat} setRenamingCat={setRenamingCat} />
+        <div className="main-col">
         {draft
           ? <ChatView key={draft.key} runKey={draft.key} newCwd={draft.cwd} forkFrom={draft.forkFrom} data={view} prefs={prefs} setPrefs={setPrefs} toast={toast} onScreen={onScreen}
               onChangeFolder={() => setDialog({ type: 'new', cwd: draft.cwd })} onForked={() => {}} renaming={false} setRenaming={() => {}} />
@@ -207,6 +217,8 @@ export default function App() {
               onRenameDone={async (id, name) => { setData(await api.rename(id, name)); toast(name.trim() ? 'Renamed' : 'Name reset to automatic title'); }}
               onCategoryClick={onCategoryClick} onMoreMenu={onMoreMenu} />
           : <Welcome data={view} onSearch={() => setDialog({ type: 'search' })} onNew={newChat} />}
+        {termUsed && <TerminalPanel cwd={draft?.cwd || current?.cwd || data.home} open={termOpen} onClose={() => setTermOpen(false)} />}
+        </div>
       </div>
 
       {dialog?.type === 'search' && <SearchPalette initial={dialog.q || ''} data={data} onOpen={open} onClose={() => setDialog(null)} />}

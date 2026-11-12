@@ -8,6 +8,7 @@ const { ChatManager, sdk, CLAUDE_BIN } = require('./chat.cjs');
 const mcpConfig = require('./mcpConfig.cjs');
 const skills = require('./skills.cjs');
 const { Updater } = require('./updater.cjs');
+const { Terminals } = require('./terminal.cjs');
 const { sdk: loadSdk, CLAUDE_BIN: CLAUDE } = require('./chat.cjs');
 const { execFile } = require('child_process');
 const { Control } = require('./control.cjs');
@@ -30,6 +31,7 @@ if (!process.env.CC_USER_DATA) {
 }
 
 let win, store, lib, chat, control, updater;
+const terms = new Terminals((ch, d) => send(ch, d));
 
 /** One-shot, tool-less Claude call that returns a SKILL.md (no session file is written). */
 async function askClaudeText(prompt) {
@@ -220,6 +222,10 @@ const handlers = {
   'skills:delete': (_e, file, cwd) => { const r = skills.remove(file, cwd); control.drop('cwd:' + (cwd || HOME)); return r; },
   'skills:generate': (_e, request, name) => askForSkill(skills.generatePrompt(request, name)),
   'skills:revise': (_e, current, request) => askForSkill(skills.revisePrompt(current, request)),
+  'term:create': (_e, opts) => terms.create(opts),
+  'term:write': (_e, id, data) => terms.write(id, data),
+  'term:resize': (_e, id, cols, rows) => terms.resize(id, cols, rows),
+  'term:kill': (_e, id) => terms.kill(id),
   'update:check': () => updater.check(),
   'update:download': (_e, update) => updater.download(update),
   'update:install': async () => { await updater.install(); setTimeout(() => { app.relaunch(); app.exit(0); }, 300); return true; },
@@ -293,4 +299,4 @@ function notify(title, body, openId) {
   n.on('click', () => { win.show(); win.focus(); send('app:open', openId); });
   n.show();
 }
-app.on('window-all-closed', () => { if (chat) chat.closeAll(); if (control) control.closeAll(); app.quit(); });
+app.on('window-all-closed', () => { terms.killAll(); if (chat) chat.closeAll(); if (control) control.closeAll(); app.quit(); });

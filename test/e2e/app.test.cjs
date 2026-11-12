@@ -200,3 +200,18 @@ test('update check shows the badge and the release notes', async () => {
   await page.getByRole('button', { name: 'Skip this version' }).click();
   assert.equal(await pill.count(), 0);
 });
+
+test('terminal: Ctrl+` opens a shell that runs commands, tabs and hide work', async () => {
+  await page.keyboard.press('Control+Backquote');
+  const panel = page.locator('.term-panel');
+  await panel.locator('.xterm-rows').waitFor();
+  await page.waitForTimeout(800); // let the shell print its prompt
+  await page.keyboard.type('echo term-$((40+2))\n');
+  await panel.locator('.xterm-rows', { hasText: 'term-42' }).waitFor({ timeout: 10000 });
+  await panel.getByTitle(/^New terminal/).click();
+  assert.equal(await panel.locator('.term-tab').count(), 2);
+  await panel.locator('.term-tab.on').getByTitle('Kill terminal').click();
+  assert.equal(await panel.locator('.term-tab').count(), 1);
+  await page.keyboard.press('Control+Backquote');
+  assert.equal(await panel.isVisible(), false);
+});

@@ -12,7 +12,7 @@ const fakeRelease = { tag_name: 'v99.0.0', name: 'v99.0.0', body: '## What chang
 const relServer = http.createServer((_q, r) => { r.setHeader('content-type', 'application/json'); r.end(JSON.stringify(fakeRelease)); }).listen(0, '127.0.0.1');
 relServer.unref();
 let fx, a, page;
-before(async () => { await new Promise(r => relServer.listening ? r() : relServer.once('listening', r)); process.env.CC_UPDATE_API = `http://127.0.0.1:${relServer.address().port}/latest`; fx = makeFixture(); a = await launch({ configDir: fx.root }); page = a.page; await page.waitForSelector('.cat'); await expandAll(page); });
+before(async () => { await new Promise(r => relServer.listening ? r() : relServer.once('listening', r)); process.env.SHELL = '/bin/bash'; process.env.CC_UPDATE_API = `http://127.0.0.1:${relServer.address().port}/latest`; fx = makeFixture(); a = await launch({ configDir: fx.root }); page = a.page; await page.waitForSelector('.cat'); await expandAll(page); });
 after(async () => { await a?.close(); fx?.cleanup(); });
 // keep tests independent: close menus/dialogs left open; save a screenshot when one fails
 afterEach(async t => {
@@ -205,9 +205,11 @@ test('terminal: Ctrl+` opens a shell that runs commands, tabs and hide work', as
   await page.keyboard.press('Control+Backquote');
   const panel = page.locator('.term-panel');
   await panel.locator('.xterm-rows').waitFor();
-  await page.waitForTimeout(800); // let the shell print its prompt
+  // wait for the shell's prompt before typing, so no keystrokes are lost during startup
+  await page.waitForFunction(() => document.querySelector('.term-panel .xterm-rows')?.textContent.trim().length > 0, null, { timeout: 15000 });
+  await page.waitForTimeout(300);
   await page.keyboard.type('echo term-$((40+2))\n');
-  await panel.locator('.xterm-rows', { hasText: 'term-42' }).waitFor({ timeout: 10000 });
+  await panel.locator('.xterm-rows', { hasText: 'term-42' }).waitFor({ timeout: 15000 });
   await panel.getByTitle(/^New terminal/).click();
   assert.equal(await panel.locator('.term-tab').count(), 2);
   await panel.locator('.term-tab.on').getByTitle('Kill terminal').click();

@@ -49,7 +49,7 @@ const Message = memo(function Message({ m, highlight, live }) {
 const PAGE = 60;
 const ACTIVE_STATES = ['starting', 'running', 'waiting'];
 
-export default function ChatView({ session, forkFrom, runKey, newCwd, data, jump, prefs, setPrefs, onScreen, onRenameDone, onCategoryClick, onMoreMenu, onChangeFolder, onForked, toast, renaming, setRenaming }) {
+export default function ChatView({ session, forkFrom, runKey, newCwd, data, jump, prefs, setPrefs, onScreen, onRenameDone, onCategoryClick, onMoreMenu, onChangeFolder, onForked, toast, renaming, setRenaming, termOpen, onTerminal }) {
   const runId = session?.id || runKey;
   const historyId = session?.id || forkFrom?.id;
   const run = useChat(runId);
@@ -186,6 +186,7 @@ export default function ChatView({ session, forkFrom, runKey, newCwd, data, jump
         {session?.branch && <span className="pill mono" title={'Git branch: ' + session.branch}><Icon name="branch" size={12} />{session.branch}</span>}
         {running && <span className="pill live"><span className="run" />{run.state === 'waiting' ? 'Needs your approval' : 'Working'}</span>}
         <span className="sp" />
+        <button className={'ibtn' + (termOpen ? ' on' : '')} title="Toggle terminal (Ctrl `)" onClick={onTerminal}><Icon name="terminal" />Terminal</button>
         <button className="ibtn" onClick={() => api.openVSCode(cwd).catch(e => toast(e.message))}><Icon name="vscode" />Open in VS Code</button>
         {session && <button className="ibtn" title="More" onClick={e => onMoreMenu(e, session)}><Icon name="more" size={16} /></button>}
       </header>

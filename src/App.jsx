@@ -187,7 +187,6 @@ export default function App() {
         {current && <span className="crumbs">{cat?.name} / {wsName}</span>}
         <div className="wctl">
           <button title="Toggle sidebar (Ctrl B)" onClick={() => setSidebar(s => !s)}><Icon name="sidebar" size={14} /></button>
-          <button className={'term-btn' + (termOpen ? ' on' : '')} title="Toggle terminal (Ctrl `)" onClick={toggleTerm}>&gt;_</button>
           <button title="Minimize" onClick={() => api.win.minimize()}>—</button>
           <button title="Maximize" onClick={() => api.win.maximize()}>▢</button>
           <button className="x" title="Close" onClick={() => api.win.close()}>✕</button>
@@ -209,11 +208,11 @@ export default function App() {
           onCreateCategory={createCategory} onRenameCategory={renameCategory} renamingCat={renamingCat} setRenamingCat={setRenamingCat} />
         <div className="main-col">
         {draft
-          ? <ChatView key={draft.key} runKey={draft.key} newCwd={draft.cwd} forkFrom={draft.forkFrom} data={view} prefs={prefs} setPrefs={setPrefs} toast={toast} onScreen={onScreen}
+          ? <ChatView key={draft.key} runKey={draft.key} newCwd={draft.cwd} forkFrom={draft.forkFrom} data={view} prefs={prefs} setPrefs={setPrefs} toast={toast} onScreen={onScreen} termOpen={termOpen} onTerminal={toggleTerm}
               onChangeFolder={() => setDialog({ type: 'new', cwd: draft.cwd })} onForked={() => {}} renaming={false} setRenaming={() => {}} />
           : current
           ? <ChatView key={current.id} session={current} data={view} jump={jump} toast={toast} renaming={renaming} setRenaming={setRenaming}
-              prefs={prefs} setPrefs={setPrefs} onScreen={onScreen} onForked={key => setDraft({ key, cwd: current.cwd, forkFrom: current })}
+              prefs={prefs} setPrefs={setPrefs} onScreen={onScreen} termOpen={termOpen} onTerminal={toggleTerm} onForked={key => setDraft({ key, cwd: current.cwd, forkFrom: current })}
               onRenameDone={async (id, name) => { setData(await api.rename(id, name)); toast(name.trim() ? 'Renamed' : 'Name reset to automatic title'); }}
               onCategoryClick={onCategoryClick} onMoreMenu={onMoreMenu} />
           : <Welcome data={view} onSearch={() => setDialog({ type: 'search' })} onNew={newChat} />}

@@ -211,9 +211,10 @@ test('terminal: Ctrl+` opens a shell that runs commands, tabs and hide work', as
   await page.keyboard.type('echo term-$((40+2))\n');
   await panel.locator('.xterm-rows', { hasText: 'term-42' }).waitFor({ timeout: 15000 });
   await panel.getByTitle(/^New terminal/).click();
-  assert.equal(await panel.locator('.term-tab').count(), 2);
-  await panel.locator('.term-tab.on').getByTitle('Kill terminal').click();
-  assert.equal(await panel.locator('.term-tab').count(), 1);
+  assert.equal(await panel.locator('.term-item').count(), 2); // the shell list appears once there are two
+  await panel.locator('.term-item.on').getByTitle('Kill terminal').click();
+  assert.equal(await panel.locator('.term-item').count(), 0); // back to one shell: list hidden, like VS Code
+  assert.equal(await panel.locator('.term-view').count(), 1);
   await page.keyboard.press('Control+Backquote');
   assert.equal(await panel.isVisible(), false);
 });

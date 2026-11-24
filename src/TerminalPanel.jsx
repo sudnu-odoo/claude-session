@@ -39,6 +39,14 @@ function TermView({ tab, active, onExit }) {
     term.loadAddon(fit);
     term.open(ref.current);
     termRef.current = { term, fit };
+    // Ctrl+Shift+C / Ctrl+Shift+V copy and paste, like VS Code and GNOME Terminal (plain Ctrl+C stays SIGINT).
+    term.attachCustomKeyEventHandler(e => {
+      if (e.type !== 'keydown' || !e.ctrlKey || !e.shiftKey || e.altKey) return true;
+      const k = e.key.toLowerCase();
+      if (k === 'c') { const t = term.getSelection(); if (t) api.copy(t); e.preventDefault(); return false; }
+      if (k === 'v') { navigator.clipboard.readText().then(t => t && term.paste(t)).catch(() => { }); e.preventDefault(); return false; }
+      return true;
+    });
     const offData = api.on('term:data', d => { if (d.id === tab.id) term.write(d.data); });
     const offExit = api.on('term:exit', d => { if (d.id === tab.id) { term.write(`\r\n\x1b[2m[process exited with code ${d.exitCode}]\x1b[0m\r\n`); onExit(tab.id); } });
     const sub = term.onData(data => api.term.write(tab.id, data));

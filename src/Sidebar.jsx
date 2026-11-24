@@ -19,7 +19,7 @@ function InlineInput({ initial = '', placeholder, onDone }) {
 }
 
 export default function Sidebar({
-  data, currentId, selected, onSelect, onOpen, onChatMenu, onWsMenu, onCatMenu, onSearch, onNew, onSettings,
+  data, currentId, selected, onSelect, onOpen, onChatMenu, onPin, onWsMenu, onCatMenu, onSearch, onNew, onSettings,
   onMoveSessions, onMoveWorkspace, onReorderCategories, onCreateCategory, onRenameCategory, renamingCat, setRenamingCat,
   account, usage, onAccountMenu, onUsage, update, onUpdate,
 }) {
@@ -113,6 +113,7 @@ export default function Sidebar({
         <span className="t">{s.title}</span>
         {s.placed === 'session' && <span title="Placed here by you"><Icon name="moved" size={12} style={{ color: 'var(--faint)' }} /></span>}
         <span className="when">{rel(s.updated)}</span>
+        <button className={'row-pin' + (s.pinned ? ' on' : '')} title={s.pinned ? 'Unpin' : 'Pin'} onClick={e => { e.stopPropagation(); onPin(s); }}><Icon name="pin" size={13} /></button>
         <button className="row-more" title="More" onClick={e => { e.stopPropagation(); onChatMenu(e, s, null); }}><Icon name="more" size={14} /></button>
       </div>
     );

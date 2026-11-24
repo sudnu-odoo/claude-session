@@ -338,7 +338,9 @@ mark{background:var(--accent-soft);color:var(--accent-text);border-radius:3px;pa
 .chat.on{background:var(--active)} .chat.on .bullet{border-color:var(--text)}
 .chat .when{display:none}
 .chat .row-more{display:none;color:var(--muted);padding:1px 3px;border-radius:5px}
-.chat:hover .row-more{display:grid;place-items:center} .chat .row-more:hover{background:var(--active);color:var(--text)}
+.chat:hover .row-more{display:grid;place-items:center}
+.chat .row-pin{display:none;color:var(--faint);padding:1px 3px;border-radius:5px} .chat:hover .row-pin{display:grid;place-items:center} .chat .row-pin:hover{background:var(--active);color:var(--text)}
+.chat .row-pin.on{color:var(--muted)} .chat:hover .when{display:none} .chat .row-more:hover{background:var(--active);color:var(--text)}
 .chat:hover .t{color:var(--text)}
 .more-row{padding:5px 12px 5px 44px;font-size:13px}
 .cat-empty{padding:4px 12px 6px 44px;font-size:13px}

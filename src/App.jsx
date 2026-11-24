@@ -197,7 +197,7 @@ export default function App() {
         </div>
       </div>
       <div className={'body' + (sidebar ? '' : ' collapsed')}>
-        <Sidebar data={view} currentId={draft ? null : currentId} selected={selected} onSelect={setSelected} onOpen={open} onChatMenu={onChatMenu} onWsMenu={onWsMenu} onCatMenu={onCatMenu}
+        <Sidebar data={view} currentId={draft ? null : currentId} selected={selected} onSelect={setSelected} onOpen={open} onChatMenu={onChatMenu} onPin={async s => setData(await api.pin(s.id, !s.pinned))} onWsMenu={onWsMenu} onCatMenu={onCatMenu}
           onSearch={q => setDialog({ type: 'search', q })} onNew={newChat} onSettings={() => setDialog({ type: 'settings' })} update={updates.available} onUpdate={() => setDialog({ type: 'update' })} account={account} usage={usage} onUsage={() => setDialog({ type: 'usage' })} onAccountMenu={e => { const r = e.currentTarget.getBoundingClientRect(); setMenu({ x: r.left, y: r.top - 6, up: true, items: [
             { header: account?.email || 'Account' },
             { label: 'Usage', k: '/usage', onClick: () => setDialog({ type: 'usage' }) },

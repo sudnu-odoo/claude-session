@@ -39,6 +39,7 @@ const P = {
   up: <path d="M12 19V5M5 12l7-7 7 7" />,
   moved: <path d="M12 2v6M8 6l4-4 4 4M5 12h14M12 22v-6" />,
   sidebar: <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /></>,
+  pin: <path d="M9 4h6l-1 5 3 3v2H7v-2l3-3-1-5zM12 14v6" />,
   plus: <path d="M12 5v14M5 12h14" />,
   chev: <path d="m6 9 6 6 6-6" />,
   hand: <path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12M11 11V4.5a1.5 1.5 0 0 1 3 0V12M14 11.5V6a1.5 1.5 0 0 1 3 0v8a6 6 0 0 1-6 6h-1a6 6 0 0 1-5-2.7L3 14a1.5 1.5 0 0 1 2.4-1.8L8 15" />,

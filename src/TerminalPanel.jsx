@@ -64,16 +64,27 @@ export function TerminalPanel({ cwd, open, onClose }) {
     setErr(null);
     try {
       await getFont(); // load the font first so the view is ready before the shell prints its prompt
-      const t = await api.term.create({ cwd: dir || cwd });
-      setTabs(x => [...x, { ...t, alive: true }]); setCur(t.id);
+      const want = dir || cwd;
+      const t = await api.term.create({ cwd: want });
+      setTabs(x => [...x, { ...t, want, alive: true }]); setCur(t.id);
     } catch (e) { setErr(String(e?.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')); }
   };
   const close = id => {
     api.term.kill(id);
     setTabs(x => { const rest = x.filter(t => t.id !== id); if (cur === id) setCur(rest.at(-1)?.id || null); if (!rest.length) onClose(); return rest; });
   };
-  // the first time the panel opens, start a shell in the current folder
-  useEffect(() => { if (open && !tabs.length) add(); }, [open]);
+  // Opening the panel (Ctrl+J) or switching chats while it is open shows a shell in the open chat's
+  // folder: the one already running there, or a new one.
+  const tabsRef = useRef(tabs); tabsRef.current = tabs;
+  const starting = useRef(new Set());
+  useEffect(() => {
+    if (!open || !cwd) return;
+    const hit = tabsRef.current.find(t => t.alive && t.want === cwd);
+    if (hit) { setCur(hit.id); return; }
+    if (starting.current.has(cwd)) return;
+    starting.current.add(cwd);
+    add(cwd).finally(() => starting.current.delete(cwd));
+  }, [open, cwd]);
 
   const drag = e => {
     e.preventDefault();
@@ -101,7 +112,7 @@ export function TerminalPanel({ cwd, open, onClose }) {
         {tabs.length > 1 && <div className="term-list" role="tablist">
           {tabs.map(t => (
             <div key={t.id} role="tab" aria-selected={cur === t.id} className={'term-item' + (cur === t.id ? ' on' : '') + (t.alive ? '' : ' dead')} onClick={() => setCur(t.id)} title={t.cwd}>
-              <Icon name="terminal" size={14} /><span className="nm">{shellName(t)}</span>
+              <Icon name="terminal" size={14} /><span className="nm">{baseName(t.cwd)} <span className="sh">{shellName(t)}</span></span>
               <button className="x" title="Kill terminal" onClick={e => { e.stopPropagation(); close(t.id); }}><Icon name="trash" size={13} /></button>
             </div>
           ))}

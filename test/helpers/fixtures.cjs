@@ -55,7 +55,7 @@ function makeFixture() {
   ]);
   files.tv = write(root, WS.tv, ids.tv, [
     user(ids.tv, WS.tv, 'Build a tizen web app for the TV'),
-    asst(ids.tv, WS.tv, [{ type: 'text', text: 'Created the project.' }]),
+    asst(ids.tv, WS.tv, [{ type: 'text', text: 'Created the project. Build it with:\n\n```bash\ntz build -t web\nls build/\n```' }]),
     { type: 'custom-title', customTitle: 'TV starter app', sessionId: ids.tv },
   ]);
   files.general = write(root, WS.home, ids.general, [

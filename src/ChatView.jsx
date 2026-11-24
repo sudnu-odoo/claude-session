@@ -7,7 +7,19 @@ import Composer from './Composer.jsx';
 import PermissionCard from './PermissionCard.jsx';
 
 marked.setOptions({ gfm: true, breaks: false });
-const Markdown = memo(({ text }) => <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(marked.parse(text || '')) }} />);
+// Every code block gets a copy button (added after sanitizing, so it is our own markup, not Claude's).
+const COPY_ICON = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
+const withCopyButtons = html => html
+  .replace(/<pre>/g, `<div class="codeblk"><button type="button" class="copy" title="Copy code" aria-label="Copy code">${COPY_ICON}</button><pre>`)
+  .replace(/<\/pre>/g, '</pre></div>');
+const onCopyClick = e => {
+  const btn = e.target.closest('button.copy'); if (!btn) return;
+  const code = btn.parentElement.querySelector('pre')?.textContent || '';
+  api.copy(code.replace(/\n$/, ''));
+  btn.classList.add('done'); btn.title = 'Copied';
+  clearTimeout(btn._t); btn._t = setTimeout(() => { btn.classList.remove('done'); btn.title = 'Copy code'; }, 1500);
+};
+const Markdown = memo(({ text }) => <div onClick={onCopyClick} dangerouslySetInnerHTML={{ __html: withCopyButtons(DOMPurify.sanitize(marked.parse(text || ''))) }} />);
 
 function ToolBlock({ b, live }) {
   const [open, setOpen] = useState(false);

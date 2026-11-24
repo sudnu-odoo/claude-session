@@ -224,3 +224,44 @@ test('terminal: Ctrl+J opens a shell that runs commands, tabs and hide work', as
   await page.keyboard.press('Control+Backquote');
   await panel.waitFor({ state: 'hidden' });
 });
+
+test('code blocks have a copy button that puts the code on the clipboard', async () => {
+  await expandAll(page);
+  await chatRow(page, 'TV starter app').click();
+  const blk = page.locator('.codeblk', { hasText: 'tz build -t web' });
+  await blk.hover();
+  await blk.locator('button.copy').click();
+  await page.waitForFunction(() => document.querySelector('.codeblk button.copy.done'));
+  const clip = await a.app.evaluate(({ clipboard }) => clipboard.readText());
+  assert.equal(clip, 'tz build -t web\nls build/');
+});
+
+test('terminal opens in the open chat\'s folder and follows chat switches', async () => {
+  const fs2 = require('fs'), os2 = require('os');
+  await expandAll(page);
+  await chatRow(page, 'TV starter app').click();
+  await page.keyboard.press('Control+j');
+  const panel = page.locator('.term-panel');
+  await panel.locator('.term-view:visible .xterm').waitFor();
+  await page.evaluate(() => [...document.querySelectorAll('.term-panel .term-view')].find(v => v.style.display !== 'none').querySelector('textarea').focus());
+  await page.waitForFunction(() => [...document.querySelectorAll('.term-panel .term-view')].some(v => v.style.display !== 'none' && v.textContent.trim()), null, { timeout: 15000 });
+  // the fixture folders may not exist on this machine: then the shell starts in the home folder
+  const tvPath = require('path').join(os2.homedir(), 'Documents/Projects/Samsung-TV');
+  const tvDir = fs2.existsSync(tvPath) ? tvPath : os2.homedir();
+  // keystrokes sent while the shell is still starting can be lost, so retype until it answers
+  let ok = false;
+  for (let i = 0; i < 4 && !ok; i++) {
+    await page.keyboard.type('echo "WHERE=$PWD"\n');
+    ok = await page.waitForFunction(d => [...document.querySelectorAll('.term-panel .term-view')].some(v => v.style.display !== 'none' && v.textContent.includes('WHERE=' + d)), tvDir, { timeout: 4000 }).then(() => true, () => false);
+  }
+  assert.ok(ok, 'the shell runs in the chat folder (' + tvDir + ')');
+  const before = await page.evaluate(() => document.querySelectorAll('.term-panel .term-view').length);
+  // switching to a chat in another folder shows a shell there; coming back reuses the first one
+  await page.locator('.chat', { hasText: /Acme invoice fix|Invoice report crash fix/ }).first().click(); // renamed by an earlier test
+  await page.waitForFunction(n => document.querySelectorAll('.term-panel .term-view').length === n + 1, before);
+  await chatRow(page, 'TV starter app').click();
+  await page.waitForTimeout(300);
+  assert.equal(await page.evaluate(() => document.querySelectorAll('.term-panel .term-view').length), before + 1);
+  await page.keyboard.press('Control+j');
+  await panel.waitFor({ state: 'hidden' });
+});

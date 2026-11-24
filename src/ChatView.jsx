@@ -54,6 +54,10 @@ export default function ChatView({ session, forkFrom, runKey, newCwd, data, jump
   const historyId = session?.id || forkFrom?.id;
   const run = useChat(runId);
   const running = !!run && ACTIVE_STATES.includes(run.state);
+  const runRef = useRef(run); runRef.current = run;
+  // Claude Code writes the last messages to the chat file a moment after it reports "done".
+  // The saved copy may replace the streamed one only once it holds every streamed message.
+  const caughtUp = saved => { const r = runRef.current; return !r || !r.live.length || saved.total >= (r.baseTotal ?? 0) + r.live.length; };
   const [msgs, setMsgs] = useState([]);
   const [range, setRange] = useState({ start: 0, end: 0, total: 0 });
   const [loading, setLoading] = useState(!!session);
@@ -82,19 +86,27 @@ export default function ChatView({ session, forkFrom, runKey, newCwd, data, jump
     const pinned = run && ACTIVE_STATES.includes(run.state) && run.baseTotal != null ? run.baseTotal : null;
     if (pinned === 0) { setMsgs([]); setRange({ start: 0, end: 0, total: 0 }); setLoading(false); anchor.current = { bottom: true }; return; }
     const before = jump?.idx != null ? jump.idx + 25 : pinned;
-    load(before, PAGE).then(r => {
+    const attempt = tries => load(before, PAGE).then(r => {
       if (dead) return;
+      // A chat that just finished (e.g. a new chat becoming a saved one) still holds its streamed copy:
+      // drop it in the same update that shows the saved messages, so nothing blinks or shows twice.
+      const finished = runRef.current && runRef.current.live.length && !ACTIVE_STATES.includes(runRef.current.state);
+      if (finished && !caughtUp(r) && tries < 10) { setTimeout(() => attempt(tries + 1), 400); return; } // file not written yet: keep the streamed copy
+      if (finished) chatActions.clearLive(runRef.current.key);
       setMsgs(r.messages); setRange({ start: r.start, end: r.start + r.messages.length, total: r.total }); setLoading(false);
       anchor.current = jump?.idx != null ? { idx: jump.idx } : { bottom: true };
     }).catch(e => { if (!dead) { setError(e.message); setLoading(false); } });
+    attempt(0);
     return () => { dead = true; };
   }, [historyId, jump?.key]);
 
-  const reloadTail = useCallback(async () => {
+  const reloadTail = useCallback(async (clearKey, tries = 0) => {
     if (!historyId) return;
     const r = await load(null, Math.max(PAGE, range.end - range.start + 10));
+    if (clearKey && !caughtUp(r) && tries < 10) { setTimeout(() => reloadTail(clearKey, tries + 1), 400); return r; } // keep the streamed copy until the file has it
     const el = scroller.current;
     const atBottom = !el || el.scrollHeight - el.scrollTop - el.clientHeight < 160;
+    if (clearKey) chatActions.clearLive(clearKey); // same tick as setMsgs: one render, no duplicate flash
     setMsgs(r.messages); setRange({ start: r.start, end: r.start + r.messages.length, total: r.total });
     if (atBottom) anchor.current = { bottom: true };
     return r;
@@ -104,7 +116,7 @@ export default function ChatView({ session, forkFrom, runKey, newCwd, data, jump
   useEffect(() => {
     if (!session || loading || range.end < range.total) return;
     if (running) return;
-    reloadTail().then(() => { if (run && run.live.length && !ACTIVE_STATES.includes(run.state)) chatActions.clearLive(run.key); });
+    reloadTail(run && run.live.length && !ACTIVE_STATES.includes(run.state) ? run.key : null);
   }, [session?.updated, running, loading]);
 
   // keep the newest content in view while streaming
@@ -199,7 +211,7 @@ export default function ChatView({ session, forkFrom, runKey, newCwd, data, jump
               <p>Claude will work in <code>{shortPath(cwd, data.home)}</code>. Skills, MCP servers and settings from that folder apply.</p>
             </div>
           )}
-          {loading && <div className="notice"><span className="spin">✻</span> Loading conversation…</div>}
+          {loading && !live.length && <div className="notice"><span className="spin">✻</span> Loading conversation…</div>}
           {error && <div className="notice bad">{error}</div>}
           {!loading && range.start > 0 && <div className="load-more">Scroll up for {range.start} earlier messages</div>}
           {!loading && msgs.map(m => <Message key={m.idx} m={m} highlight={jump?.idx === m.idx} />)}

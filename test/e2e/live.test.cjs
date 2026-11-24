@@ -51,21 +51,48 @@ async function finish(timeout = 150_000) {
   throw new Error('reply did not finish in time');
 }
 
+// Records every DOM change in the chat while a reply finishes: how many user prompts (.u) were on
+// screen at most, whether any went away again, and whether the "Loading conversation" notice flashed.
+const watchFlicker = () => page.evaluate(() => {
+  const st = window.__flicker = { maxU: 0, dropped: false, loading: false };
+  const snap = () => {
+    const n = document.querySelectorAll('.main .u').length;
+    const sig = n + ':' + document.querySelectorAll('.main .a').length + ':' + (document.querySelector('.thinking') ? 'T' : '') + (document.querySelector('.composer .stop, .composer [title*=Stop]') ? 'S' : '');
+    if (sig !== st.last) { (st.seq ||= []).push(Math.round(performance.now()) % 100000 + ' ' + sig); st.last = sig; }
+    if (n < st.maxU) st.dropped = true; // something that was on screen went away
+    st.maxU = Math.max(st.maxU, n);
+    if (/Loading conversation/.test(document.querySelector('.main')?.textContent || '')) st.loading = true;
+  };
+  st.obs = new MutationObserver(snap); st.obs.observe(document.body, { childList: true, subtree: true, characterData: true });
+});
+const flickerStats = async () => {
+  const st = await page.evaluate(() => { const st = window.__flicker; st.obs.disconnect(); return { maxU: st.maxU, dropped: st.dropped, loading: st.loading, seq: st.seq }; });
+  if (process.env.CC_FLICKER_DEBUG) console.log('timeline (ms prompts:replies:Thinking/Stop):', st.seq);
+  delete st.seq; return st;
+};
+
 test('new chat: folder picker, streaming reply, approval, saved session', opts, async () => {
   await page.locator('.nav-it', { hasText: 'New chat' }).click();
   await page.fill('.pathrow input', dir);
   await page.locator('.modal .b.pri', { hasText: 'Start chat' }).click();
   await send('Create a file note.txt containing the word alpha, using the Write tool. Then reply with one short sentence.');
+  await watchFlicker();
   await finish();
   assert.equal(fs.readFileSync(path.join(dir, 'note.txt'), 'utf8').trim(), 'alpha');
   // the finished chat becomes a normal saved session in the sidebar
   await page.waitForSelector('.wsbar .pill:not(.mono)', { timeout: 30_000 }); // category pill appears for saved sessions
+  await page.waitForTimeout(1500); // let the swap from streamed to saved messages settle
   assert.ok(await page.locator('.a').count() >= 1);
+  // no blink when the new chat turns into a saved one: the prompt never vanished or showed twice
+  assert.deepEqual(await flickerStats(), { maxU: 1, dropped: false, loading: false });
 });
 
 test('resuming the same chat keeps its memory', opts, async () => {
   await send('What word did you write into note.txt? Answer with just the word.');
+  await watchFlicker();
   await finish();
+  await page.waitForTimeout(2500); // the saved file is re-read when the reply ends
+  assert.deepEqual(await flickerStats(), { maxU: 2, dropped: false, loading: false }, 'reply swap without duplicates or blinking');
   assert.match((await page.locator('.a').last().textContent()).toLowerCase(), /alpha/);
 });
 
